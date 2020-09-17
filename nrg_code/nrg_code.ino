@@ -1,22 +1,23 @@
-#include <MovingAverage.h>
-
 #include <U8g2lib.h>
 #include <U8x8lib.h>
 
 #include "fan.c" // fan bitmap
 
+//#define DEBUGMODE
+
 // compile time information
 const char compile_date[] = __DATE__;
 // version
-const char swVersion[] = "0.1";
+const char swVersion[] = "0.2";
 
 #define PULSEPIN A5
 
 #define THRESH 128
 
-#define CURAVGSMP 4 // current value moving average samples
+#define AVGSMP 4 // current value moving average samples
 
-#define MAXPERIOD 5000 // max valid period
+#define MAXPERIOD 5000000 // max valid period in uS
+#define MINPERIOD 5000    // min valid period in uS
 
 #define MINSPEED 2 // minimum valid speed in mph
 #define MAXSPEED 250 // max valid speed in mph
@@ -35,11 +36,12 @@ unsigned long prevTime = 0;
 unsigned long newTime = 0;
 
 // real-time moving average storage
-MovingAverage<unsigned> curAvg(CURAVGSMP, MAXPERIOD);
-unsigned long lastCurAvg = 0;
+unsigned long avgArray[AVGSMP] = {MAXPERIOD};
+int avgIndex = 0;
+unsigned long lastAvgTime = 0;
 
-// storage for max speed (min period)
-unsigned int minPeriod = MAXPERIOD;
+// storage for max speed (min period) (start at max period)
+unsigned long lowPeriod = MAXPERIOD;
 
 // screen refresh timer
 unsigned long lastScreen = 0;
@@ -48,6 +50,23 @@ unsigned long lastScreen = 0;
 unsigned char fanCount = 0;
 
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
+
+unsigned long getAvg() {
+  unsigned long avgTotal = 0;
+  for (int i=0;i<AVGSMP;i++) {
+    avgTotal += avgArray[i];
+  }
+  return avgTotal / AVGSMP;
+}
+
+void appendAvg(unsigned long period) {
+  avgArray[avgIndex] = period;
+  if (avgIndex >= 3) {
+    avgIndex = 0;
+  } else {
+    avgIndex++;
+  }
+}
 
 void splashScreen() {
   u8g2.clearBuffer();
@@ -62,21 +81,23 @@ void splashScreen() {
   u8g2.setCursor(4,58);
   u8g2.print(compile_date);
   u8g2.sendBuffer();
-  for (int i=0; i<100; i+=2) {
+  // loading animation
+  for (int i=0; i<100; i+=3) {
     u8g2.drawPixel(14+(i),63);
     u8g2.drawPixel(14+(i+1),63);
+    u8g2.drawPixel(14+(i+2),63);
     u8g2.sendBuffer();
   }
   delay(1000);
 }
 
-float periodToSpeed(unsigned int period) {
+float periodToSpeed(unsigned long period) {
   // divide by zero protection
   if (period < 1) {period = 1;}
-  // convert to frequency in Hz
-  float freq = 1 / (float(period) / 1000);
+  // convert uS to frequency in Hz
+  float freq = 1 / (float(period) / 1000000);
   // use parameters to get m/s
-  float mps = (0.759 * freq) + 0.37;
+  float mps = (0.759 * float(freq)) + 0.37;
   // convert to mph
   float mph = mps * 2.23694;
   if (mph < MINSPEED) { mph = 0; }
@@ -84,10 +105,26 @@ float periodToSpeed(unsigned int period) {
   return mph;
 }
 
+void debugScreen() {
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_9x15_tr);
+  u8g2.setCursor(4,12);
+  u8g2.print("Cur Period:");
+  u8g2.setCursor(16,24);
+  u8g2.print(String(getAvg()));
+  u8g2.setCursor(4,36);
+  u8g2.print("Min Period:");
+  u8g2.setCursor(16,48);
+  u8g2.print(String(lowPeriod));
+  u8g2.setCursor(4,60);
+  u8g2.print("DEBUG MODE");
+  u8g2.sendBuffer();
+}
+
 void updateScreen() {
   // calculate speeds from periods
-  float curMph = periodToSpeed(curAvg.get());
-  float maxMph = periodToSpeed(minPeriod);
+  float curMph = periodToSpeed(getAvg());
+  float maxMph = periodToSpeed(lowPeriod);
   // clear screen
   u8g2.clearBuffer();
   // print current speed, with extra sauce for right-justification
@@ -140,8 +177,12 @@ void setup() {
   // display setup
   u8g2.begin();
   u8g2.clear();
-  splashScreen();
-  updateScreen();
+  #ifdef DEBUGMODE
+    debugScreen();
+  #else
+    splashScreen();
+    updateScreen();
+  #endif
 }
 
 void loop() {
@@ -155,33 +196,37 @@ void loop() {
     trig = true;
     // store the previous time and record the new one
     prevTime = newTime;
-    newTime = millis();
+    newTime = micros();
     // calculate that period and check if it's out of range
-    int period = newTime - prevTime;
+    unsigned long period = newTime - prevTime;
     if (period > MAXPERIOD) { period = MAXPERIOD; }
     // add it to the current averages
-    curAvg.push(period);
-    lastCurAvg = millis();
+    appendAvg(period);
+    lastAvgTime = millis();
     // check if it's a new max low
-    if (curAvg.get() < minPeriod) {minPeriod = curAvg.get();}
+    if (getAvg() < lowPeriod) {lowPeriod = getAvg();}
   } else if (!pin && trig) {
     // if we were triggered but are now low, reset everything
     trig = false;
     // if we've waited longer than the max period, add a max period to the average
-    if (millis() - newTime > MAXPERIOD) {
-      lastCurAvg = millis();
-      curAvg.push(MAXPERIOD);
+    if (micros() - newTime > MAXPERIOD) {
+      lastAvgTime = millis();
+      appendAvg(MAXPERIOD);
     }
   } else if (!pin && !trig) {
     // if nothing is happening but we're past the max timeout, add another 0 to the moving average
-    if (millis() - lastCurAvg > INTERVAL) {
-      lastCurAvg = millis();
-      curAvg.push(MAXPERIOD);
+    if (millis() - lastAvgTime > INTERVAL) {
+      lastAvgTime = millis();
+      appendAvg(MAXPERIOD);
     }
   }
   // screen update timer
   if (millis() - lastScreen > SCREENINTERVAL) {
     lastScreen = millis();
-    updateScreen();
+    #ifdef DEBUGMODE
+      debugScreen();
+    #else
+      updateScreen();
+    #endif
   }
 }
