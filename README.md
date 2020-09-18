@@ -5,7 +5,7 @@ This project started because I found a great deal on some NRG anemometers on eBa
 
 The heavy lifting of the circuit was already done for me - the technical whitepaper from NRG clearly illustrates an almost-complete schematic. The only real work to be done was selection of components, the MCU interfacing, and board design for a nice compact meter.
 
-
+![NRG Block Diagram](https://raw.githubusercontent.com/W3AXL/NRG-Anemometer-Display/master/nrg-block-diagram.PNG)
 
 I went through a lot of initial brainstorming for the interface concept - battery powered, or DC? Integrated data logging, or keep it simple? How many buttons? Should it beep at you annoyingly?
 
