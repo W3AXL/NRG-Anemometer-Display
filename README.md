@@ -1,6 +1,11 @@
 # NRG Anemometer Display
 A compact, cheap interface unit for NRG #40C 3-cup anemometers.
 
+<p float="left">
+  <img src="https://raw.githubusercontent.com/W3AXL/NRG-Anemometer-Display/master/media/pic_small_1.png" height="300" />
+  <img src="https://raw.githubusercontent.com/W3AXL/NRG-Anemometer-Display/master/media/pic_small_2.png" height="300" /> 
+</p>
+
 This project started because I found a great deal on some NRG anemometers on eBay. Two for $40 was hard to turn down, especially because each unit is calibrated from the factory and said calibration is freely available on [NRG's website](https://www.nrgsystems.com/support/product-support/calibration-reports/).
 
 The heavy lifting of the circuit was already done for me - the technical whitepaper from NRG clearly illustrates an almost-complete schematic. The only real work to be done was selection of components, the MCU interfacing, and board design for a nice compact meter.
