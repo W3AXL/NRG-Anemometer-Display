@@ -14,7 +14,7 @@ const char swVersion[] = "0.2";
 
 #define THRESH 128
 
-#define AVGSMP 4 // current value moving average samples
+#define AVGSMP 5 // current value moving average samples
 
 #define MAXPERIOD 5000000 // max valid period in uS
 #define MINPERIOD 5000    // min valid period in uS
@@ -22,9 +22,11 @@ const char swVersion[] = "0.2";
 #define MINSPEED 2 // minimum valid speed in mph
 #define MAXSPEED 250 // max valid speed in mph
 
+#define OUTLIER_MULTIPLIER 5 // the current running average multipled and divided by this term defines the bounds of the outlier detection algorithm
+
 #define INTERVAL 1000
 
-#define SCREENINTERVAL 500
+#define SCREENINTERVAL 375
 
 // calibration data
 #define SLOPE 0.759
@@ -51,6 +53,13 @@ unsigned char fanCount = 0;
 
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
 
+// initialize the average array with all maxperiods
+void initAvg() {
+  for (int i=0;i<AVGSMP;i++) {
+    avgArray[i] = MAXPERIOD;
+  }
+}
+
 unsigned long getAvg() {
   unsigned long avgTotal = 0;
   for (int i=0;i<AVGSMP;i++) {
@@ -60,11 +69,16 @@ unsigned long getAvg() {
 }
 
 void appendAvg(unsigned long period) {
-  avgArray[avgIndex] = period;
-  if (avgIndex >= 3) {
-    avgIndex = 0;
-  } else {
-    avgIndex++;
+  // get the average up to this point
+  unsigned long oldAvg = getAvg();
+  // check that the new period is within the outlier detection bounds
+  if ( (oldAvg / OUTLIER_MULTIPLIER) < period < (oldAvg * OUTLIER_MULTIPLIER) ) {
+    avgArray[avgIndex] = period;
+    if (avgIndex >= 3) {
+      avgIndex = 0;
+    } else {
+      avgIndex++;
+    }
   }
 }
 
@@ -172,11 +186,14 @@ void updateScreen() {
 }
 
 void setup() {
+  // initialize average avgArrray
+  //initAvg();
   //pinmode 
   //pinMode(PULSEPIN, INPUT_PULLUP);
   // display setup
   u8g2.begin();
   u8g2.clear();
+  u8g2.setBusClock(400000);
   #ifdef DEBUGMODE
     debugScreen();
   #else
