@@ -3,7 +3,7 @@
 
 #include "fan.c" // fan bitmap
 
-//#define DEBUGMODE
+#define DEBUGMODE
 
 // compile time information
 const char compile_date[] = __DATE__;
