@@ -1,7 +1,7 @@
 #include <U8g2lib.h>
 #include <U8x8lib.h>
 
-#include "fan.c" // fan bitmap
+#include "fan3d.c" // fan bitmap
 
 #include "src/FreqMeasure/FreqMeasure.h"
 
@@ -46,7 +46,6 @@ U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
 void splashScreen() {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_9x15_tr);
-  u8g2.drawXBM(4,4,fan_width,fan_height,fan1_bits);
   u8g2.setCursor(40,16);
   u8g2.print("Anemometer");
   u8g2.setCursor(40,30);
@@ -62,8 +61,23 @@ void splashScreen() {
     u8g2.drawPixel(14+(i+1),63);
     u8g2.drawPixel(14+(i+2),63);
     u8g2.sendBuffer();
+    switch (i%4) {
+      case 0:
+        u8g2.drawXBM(4,12,fan_width,fan_height,fan1_bits);
+        break;
+      case 1:
+        u8g2.drawXBM(4,12,fan_width,fan_height,fan2_bits);
+        break;
+      case 2:
+        u8g2.drawXBM(4,12,fan_width,fan_height,fan3_bits);
+        break;
+      case 3:
+        u8g2.drawXBM(4,12,fan_width,fan_height,fan4_bits);
+        break;
+    }
+    
   }
-  delay(1000);
+  delay(2000);
 }
 
 void debugScreen(float curFreq) {
@@ -87,22 +101,38 @@ void updateScreen(int curMph, int maxMph) {
   u8g2.clearBuffer();
   // print current speed, with extra sauce for right-justification
   String curSpd = String(int(curMph));
-  int align = 0;
+  u8g2.setFont(u8g2_font_logisoso54_tr);
   switch (curSpd.length()) {
+    // single digit
     case 1:
-      align = 54;
+      u8g2.setCursor(54,62);
+      u8g2.print(curSpd);
       break;
+    // two digits
     case 2:
-      align = 20;
+      u8g2.setCursor(54,62);
+      u8g2.print(curSpd[1]);
+      u8g2.setCursor(24,62);
+      u8g2.print(curSpd[0]);
+      break;
+    // three digits
+    case 3:
+      u8g2.setCursor(54,62);
+      u8g2.print(curSpd[2]);
+      u8g2.setCursor(24,62);
+      u8g2.print(curSpd[1]);
+      u8g2.setCursor(-3,62);
+      u8g2.print(curSpd[0]);
       break;
   }
-  u8g2.setFont(u8g2_font_logisoso54_tr);
-  u8g2.setCursor(align,62);
-  u8g2.print(curSpd);
   // max speed
   u8g2.setFont(u8g2_font_logisoso20_tr);
   u8g2.setCursor(88,62);
   u8g2.print(String(int(maxMph)));
+  // MPH text
+  u8g2.setFont(u8g2_font_profont17_tr);
+  u8g2.setCursor(91,38);
+  u8g2.print("MPH");
   // increment the fan animation on screen update if our speed is not 0
   if (curMph > 0) {
     if (fanCount > 2) {
@@ -114,16 +144,16 @@ void updateScreen(int curMph, int maxMph) {
   // display the proper fan graphic
   switch (fanCount) {
     case 0:
-      u8g2.drawXBM(90,6,fan_width,fan_height,fan1_bits);
+      u8g2.drawXBM(90,8,fan_width,fan_height,fan1_bits);
       break;
     case 1:
-      u8g2.drawXBM(90,6,fan_width,fan_height,fan2_bits);
+      u8g2.drawXBM(90,8,fan_width,fan_height,fan2_bits);
       break;
     case 2:
-      u8g2.drawXBM(90,6,fan_width,fan_height,fan3_bits);
+      u8g2.drawXBM(90,8,fan_width,fan_height,fan3_bits);
       break;
     case 3:
-      u8g2.drawXBM(90,6,fan_width,fan_height,fan4_bits);
+      u8g2.drawXBM(90,8,fan_width,fan_height,fan4_bits);
       break;
   }
   // send all that grafix shit
@@ -160,6 +190,7 @@ void loop() {
     } else if (millis() - lastMax > RESETTIMEOUT) {
       maxSpeed = speed;
       maxFreq = freq;
+      lastMax = millis();
     }
     // update the screen
     #ifdef DEBUGMODE
@@ -171,6 +202,12 @@ void loop() {
     lastUpdate = millis();
   // if we haven't gotten a frequency update in longer than the minimum measurement period, update the screen
   } else if (millis() - lastUpdate > (1000/MINFREQ)) {
+    // also reset our max if it's time
+    if (millis() - lastMax > RESETTIMEOUT) {
+      maxSpeed = 0;
+      maxFreq = 0;
+      lastMax = millis();
+    }
     updateScreen(0, maxSpeed);
   }
 }

@@ -1,0 +1,8 @@
+  2/7/2021 6:01:06 PM: Starting composition “3dfan”.
+
+  Output To: H:\Documents\GitHub\NRG-Anemometer-Display\graphics\3dfan\3dfan_[#####].png    2/7/2021 6:01:06 PM: Finished composition “3dfan”.
+
+
+  Total Time Elapsed: 0 Seconds
+Log closed on 2/7/2021 at 6:01:06 PM
+
