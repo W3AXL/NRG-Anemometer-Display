@@ -1,4 +1,5 @@
 (sym_lib_table
   (lib (name XC6210)(type Legacy)(uri ${KIPRJMOD}/XC6210.lib)(options "")(descr ""))
   (lib (name PCF2123)(type Legacy)(uri ${KIPRJMOD}/PCF2123.lib)(options "")(descr ""))
+  (lib (name nrg-control-box-rescue)(type Legacy)(uri ${KIPRJMOD}/nrg-control-box-rescue.lib)(options "")(descr ""))
 )

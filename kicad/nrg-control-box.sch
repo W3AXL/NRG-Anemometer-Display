@@ -5,8 +5,8 @@ $Descr USLetter 11000 8500
 encoding utf-8
 Sheet 1 1
 Title "NRG Anemometer Display"
-Date "2020-09-14"
-Rev "B"
+Date "2021-02-07"
+Rev "C"
 Comp "W3AXL"
 Comment1 ""
 Comment2 ""
@@ -326,7 +326,7 @@ Connection ~ 3400 5150
 Wire Wire Line
 	3400 5150 3400 5200
 $Comp
-L Connector:USB_B_Micro J4
+L nrg-control-box-rescue:USB_B_Micro-Connector J4
 U 1 1 5F46D984
 P 9200 3250
 F 0 "J4" H 8970 3239 50  0000 R CNN
@@ -666,7 +666,6 @@ Wire Wire Line
 	7650 1900 7650 1950
 Connection ~ 7650 1950
 NoConn ~ 6350 3150
-NoConn ~ 6350 3250
 NoConn ~ 6350 4750
 NoConn ~ 6350 4850
 NoConn ~ 6350 4950
@@ -909,6 +908,13 @@ Wire Wire Line
 Connection ~ 3300 4550
 NoConn ~ 6350 4450
 Wire Wire Line
-	4300 4650 6350 4650
+	4300 4650 5500 4650
 Connection ~ 4300 4650
+Wire Wire Line
+	6350 3250 5500 3250
+Wire Wire Line
+	5500 3250 5500 4650
+Connection ~ 5500 4650
+Wire Wire Line
+	5500 4650 6350 4650
 $EndSCHEMATC
