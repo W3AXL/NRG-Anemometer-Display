@@ -10,7 +10,7 @@
 // compile time information
 const char compile_date[] = __DATE__;
 // version
-const char swVersion[] = "1.0";
+const char swVersion[] = "1.1";
 
 // Frequency Measurement Limits
 #define MINFREQ 1     // approx 1.129 m/s or 2.5 mph
@@ -18,6 +18,12 @@ const char swVersion[] = "1.0";
 
 // Max speed reset timer in ms
 #define RESETTIMEOUT (30*1000)
+
+// Serial port report interval
+#define REPORT_INTERVAL 2000
+
+// Idle fan animation framerate
+#define IDLE_ANIM_TIME 2000
 
 // calibration data from NRG sensor
 #define SLOPE 0.759
@@ -29,14 +35,23 @@ const char swVersion[] = "1.0";
 // storage for max freq
 float maxFreq;
 
+// storage for current speed in mph
+char curSpeed;
+
 // storage for max speed in mph
-unsigned int maxSpeed;
+char maxSpeed;
 
 // fan animation counter
 unsigned char fanCount = 0;
 
 // screen update timer
 unsigned long lastUpdate = 0;
+
+// serial report timer
+unsigned long lastReport = 0;
+
+// fan idle timeout
+unsigned long lastIdle = 0;
 
 // max speed reset vars
 unsigned long lastMax = 0;
@@ -75,7 +90,6 @@ void splashScreen() {
         u8g2.drawXBM(4,12,fan_width,fan_height,fan4_bits);
         break;
     }
-    
   }
   delay(2000);
 }
@@ -101,7 +115,7 @@ void updateScreen(int curMph, int maxMph) {
   u8g2.clearBuffer();
   // print current speed, with extra sauce for right-justification
   String curSpd = String(int(curMph));
-  u8g2.setFont(u8g2_font_logisoso54_tr);
+  u8g2.setFont(u8g2_font_logisoso54_tn);
   switch (curSpd.length()) {
     // single digit
     case 1:
@@ -126,19 +140,31 @@ void updateScreen(int curMph, int maxMph) {
       break;
   }
   // max speed
-  u8g2.setFont(u8g2_font_logisoso20_tr);
+  u8g2.setFont(u8g2_font_logisoso20_tn);
   u8g2.setCursor(88,62);
   u8g2.print(String(int(maxMph)));
   // MPH text
   u8g2.setFont(u8g2_font_profont17_tr);
-  u8g2.setCursor(91,38);
+  u8g2.setCursor(90,37);
   u8g2.print("MPH");
-  // increment the fan animation on screen update if our speed is not 0
+  // Fan animation
   if (curMph > 0) {
+    // increment the fan animation on screen update if our speed is not 0
     if (fanCount > 2) {
       fanCount = 0;
     } else {
       fanCount++;
+    }
+  } else {
+    // Idle animation if speed is zero
+    if ((millis() - lastIdle) > IDLE_ANIM_TIME) {
+      lastIdle = millis();
+      // switch between frames 0 and 1
+      if (fanCount) {
+        fanCount = 0;
+      } else {
+        fanCount = 1;
+      }
     }
   }
   // display the proper fan graphic
@@ -163,6 +189,8 @@ void updateScreen(int curMph, int maxMph) {
 void setup() {
   // initialize frequency measurement
   FreqMeasure.begin();
+  // Serial port init
+  Serial.begin(115200);
   // display setup
   u8g2.begin();
   u8g2.clear();
@@ -181,14 +209,14 @@ void loop() {
     float rawSpeed = ((freq * SLOPE) + OFFSET) * MPHFACTOR;
     // round to nearest int by adding 0.5 before casting
     rawSpeed = rawSpeed + 0.5 - (rawSpeed<0);
-    unsigned int speed = int(rawSpeed);
+    curSpeed = int(rawSpeed);
     // check if that's a new max
-    if (speed > maxSpeed) { 
-      maxSpeed = speed; 
+    if (curSpeed > maxSpeed) { 
+      maxSpeed = curSpeed; 
       maxFreq = freq;
       lastMax = millis();
     } else if (millis() - lastMax > RESETTIMEOUT) {
-      maxSpeed = speed;
+      maxSpeed = curSpeed;
       maxFreq = freq;
       lastMax = millis();
     }
@@ -196,7 +224,7 @@ void loop() {
     #ifdef DEBUGMODE
       debugScreen(freq);
     #else
-      updateScreen(speed, maxSpeed);
+      updateScreen(curSpeed, maxSpeed);
     #endif
     // record the screen update time
     lastUpdate = millis();
@@ -209,5 +237,14 @@ void loop() {
       lastMax = millis();
     }
     updateScreen(0, maxSpeed);
+  }
+  // Send serial report update if we can
+  if (Serial.availableForWrite() > 16) {
+    if (millis() - lastReport > REPORT_INTERVAL) {
+      char buf[16];
+      sprintf(buf, "CUR:%u,MAX:%u", curSpeed, maxSpeed);
+      Serial.println(buf);
+      lastReport = millis();
+    }
   }
 }

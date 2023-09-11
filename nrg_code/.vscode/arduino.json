@@ -2,5 +2,6 @@
     "board": "SparkFun:avr:promicro",
     "configuration": "cpu=8MHzatmega32U4",
     "sketch": "nrg_code.ino",
-    "programmer": "USBtinyISP"
+    "programmer": "USBtinyISP",
+    "port": "COM20"
 }
